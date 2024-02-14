@@ -1,0 +1,257 @@
+/*
+ * st7735.c
+ *
+ *  Created on: 8 févr. 2024
+ *      Author: anton
+ */
+
+
+#include "st7735.h"
+
+void ST7735_Init(void) {
+
+	// Using SPI1, 8 bits / bi-directionnal interface
+	//
+	// pins used:
+	//    - PA5 (D13) as SPI_SCK (AF5)
+	//    - PA7 (D11) as SPI_MOSI (AF5)
+	//      In this case, PA7 is SDA and is a bi-di line so we make it open-drain
+	//	  - PA4 (A2)  as SPI_CS (software controlled)
+	//
+	//    - PA9 (D8) : DC (data / command select)
+	//    - PA10 (D2) : RST (chip reset)
+	//      RST low => chip initialization
+	//      RST high => normal operation
+	//    - PA11 : BLK (back light control)
+	//
+	// F(PCLK) = F(PCLK2) = 64MHz
+	// (Debug/Troubleshooting purposes) Baud rate is 250kHz => BR = /256
+	//
+	// Default pixel color format : 18bits / pixel (6/6/6)
+
+	// Enable GPIOA clock
+	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
+
+	// Configure pins (High-speed, AF5)
+	GPIOA->MODER &= ~(GPIO_MODER_MODE5_Msk | GPIO_MODER_MODE7_Msk);
+	GPIOA->MODER |= (0x02 << GPIO_MODER_MODE5_Pos) | (0x02 << GPIO_MODER_MODE7_Pos);
+	GPIOA->OSPEEDR &= ~(GPIO_OSPEEDR_OSPEED5_Msk | GPIO_OSPEEDR_OSPEED7_Msk);
+	GPIOA->OSPEEDR |= (0x02 << GPIO_OSPEEDR_OSPEED5_Pos) | (0x02 << GPIO_OSPEEDR_OSPEED7_Pos);
+	GPIOA->AFR[0] &= ~(GPIO_AFRL_AFSEL5_Msk | GPIO_AFRL_AFSEL7_Msk);
+	GPIOA->AFR[0] |= (0x05 << GPIO_AFRL_AFSEL5_Pos) | (0x05 << GPIO_AFRL_AFSEL7_Pos);
+
+	// PA4 (CS) as high-speed output GPIO
+	GPIOA->MODER &= ~GPIO_MODER_MODE4_Msk;
+	GPIOA->MODER |= (0x01 << GPIO_MODER_MODE4_Pos);
+	GPIOA->OSPEEDR &= ~GPIO_OSPEEDR_OSPEED4_Msk;
+	GPIOA->OSPEEDR |= (0x02 << GPIO_OSPEEDR_OSPEED4_Pos);
+
+	// CS active low
+	GPIOA->ODR |= GPIO_ODR_OD4;
+
+	// Other ST7735-related GPIOs (BKL, DC, RST)
+	GPIOA->MODER &= ~(GPIO_MODER_MODE9_Msk | GPIO_MODER_MODE10_Msk | GPIO_MODER_MODE11_Msk);
+	GPIOA->MODER |= (0x01 << GPIO_MODER_MODE9_Pos) | (0x01 << GPIO_MODER_MODE10_Pos) | (0x01 << GPIO_MODER_MODE11_Pos);
+	GPIOA->OSPEEDR &= ~(GPIO_OSPEEDR_OSPEED9_Msk | GPIO_OSPEEDR_OSPEED10_Msk | GPIO_OSPEEDR_OSPEED11_Msk);
+	GPIOA->OSPEEDR |= (0x02 << GPIO_OSPEEDR_OSPEED9_Pos) | (0x02 << GPIO_OSPEEDR_OSPEED10_Pos) | (0x02 << GPIO_OSPEEDR_OSPEED11_Pos);
+
+	// RST is high by default
+	GPIOA->ODR |= GPIO_ODR_OD10;
+
+	// Enable SPI1 clock
+	RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
+
+	// Reset configuration
+	SPI1->CR1 = 0x0000;
+	SPI1->CR2 = 0x0700;
+
+	// Select Bi-directionnal mode
+	SPI1->CR1 |= SPI_CR1_BIDIMODE;
+
+	// MCU is master
+	SPI1->CR1 |= SPI_CR1_MSTR;
+
+	// Enable software slave management
+	SPI1->CR1 |= SPI_CR1_SSM | SPI_CR1_SSI;
+
+	// Set Baud rate to 250kHz
+	SPI1->CR1 |= (0x07 << SPI_CR1_BR_Pos);
+
+	// Set SPI1 FIFO RX threshold to 8 bit
+	SPI1->CR2 |= SPI_CR2_FRXTH;
+
+	// Transmit only mode first
+	SPI1->CR1 |= SPI_CR1_BIDIOE;
+
+	// Enable SPI1
+	SPI1->CR1 |= SPI_CR1_SPE;
+
+////////////////////////////////////////////////// end of STM32 configuration, begin LCD initialization
+
+	// Reset ST7735
+	// Hardware reset
+	ST7735_HWReset();
+	TIM_Delay_Milli(130);
+
+	// Software reset
+	ST7735_SendCommand(SWRESET);
+
+	// Must wait at least 120ms after SW reset
+	TIM_Delay_Milli(130);
+
+	// Sleep out
+	ST7735_SendCommand(SLPOUT);
+
+	// Must wait at least 120ms after SLPOUT
+	TIM_Delay_Milli(130);
+
+	// Display ON
+	ST7735_SendCommand(DISPON);
+}
+
+void ST7735_WriteByte(const uint8_t byte) {
+	// Transmit only mode
+	SPI1->CR1 |= SPI_CR1_BIDIOE;
+
+	// Set CS low
+	GPIOA->ODR &= ~GPIO_ODR_OD4;
+
+	// wait for TX buffer to empty
+	while((SPI1->SR & SPI_SR_TXE) != SPI_SR_TXE);
+
+	// write byte
+	*(__IO uint8_t*)&SPI1->DR = byte;
+
+	// wait while SPI is busy
+	while((SPI1->SR & SPI_SR_BSY) != 0);
+
+	// Set CS high
+	GPIOA->ODR |= GPIO_ODR_OD4;
+}
+
+// TODO : fix this function
+void ST7735_ReadBytes(const uint8_t address, uint8_t* bytes, const uint8_t n) {
+	// Send address we want to read from
+	// Transmit only mode
+	SPI1->CR1 |= SPI_CR1_BIDIOE;
+
+	// DC has to be low (command)
+	GPIOA->ODR &= ~GPIO_ODR_OD9;
+
+	// Set CS low
+	GPIOA->ODR &= ~GPIO_ODR_OD4;
+
+	// wait for TX buffer to empty
+	while((SPI1->SR & SPI_SR_TXE) != SPI_SR_TXE);
+
+	// write byte
+	*(__IO uint8_t*)&SPI1->DR = address;
+
+	// Receive only mode then
+	SPI1->CR1 &= ~SPI_CR1_BIDIOE;
+
+	// DC has to be high when reading
+	GPIOA->ODR |= GPIO_ODR_OD9;
+
+	for (uint8_t i = 0; i < n; ++i) {
+		// wait for RX buffer to not be empty
+		while((SPI1->SR & SPI_SR_RXNE) != SPI_SR_RXNE);
+
+		// receive data
+		*(bytes + i) = *(__IO uint8_t*)&SPI1->DR;
+	}
+
+	// wait while SPI is busy
+	while((SPI1->SR & SPI_SR_BSY) != 0);
+
+	// Set CS high
+	GPIOA->ODR |= GPIO_ODR_OD4;
+
+	// Back to Transmit only mode
+	SPI1->CR1 |= SPI_CR1_BIDIOE;
+}
+
+/////////////////////////////////////////////// Function to fill the LCD RAM
+void ST7735_MemoryWrite(void) {
+	// Write to RAM
+	ST7735_SendCommand(RAMWR);
+
+	// DC has to be high (data)
+	GPIOA->ODR |= GPIO_ODR_OD9;
+
+	// Set CS low
+	GPIOA->ODR &= ~GPIO_ODR_OD4;
+
+	// Loop through all pixels
+	for (uint32_t i = 0; i < PIXEL_WIDTH*PIXEL_HEIGHT; ++i) {
+		// EXAMPLE : ALL RED SCREEN
+
+		// R
+		// wait for TX buffer to empty
+		while((SPI1->SR & SPI_SR_TXE) != SPI_SR_TXE);
+
+		// write byte
+		*(__IO uint8_t*)&SPI1->DR = 0x00;
+
+
+		// G
+		// wait for TX buffer to empty
+		while((SPI1->SR & SPI_SR_TXE) != SPI_SR_TXE);
+
+		// write byte
+		*(__IO uint8_t*)&SPI1->DR = 0xFC;
+
+
+		// B
+		// wait for TX buffer to empty
+		while((SPI1->SR & SPI_SR_TXE) != SPI_SR_TXE);
+
+		// write byte
+		*(__IO uint8_t*)&SPI1->DR = 0x00;
+	}
+
+	// wait while SPI is busy
+	while((SPI1->SR & SPI_SR_BSY) != 0);
+
+	// Set CS high
+	GPIOA->ODR |= GPIO_ODR_OD4;
+}
+
+
+void ST7735_SendData(const uint8_t data) {
+	// Data => DC High
+	GPIOA->ODR |= GPIO_ODR_OD9;
+
+	// Send data
+	ST7735_WriteByte(data);
+}
+
+void ST7735_SendCommand(const uint8_t command) {
+	// Command => DC Low
+	GPIOA->ODR &= ~GPIO_ODR_OD9;
+
+	// Send command
+	ST7735_WriteByte(command);
+}
+
+void ST7735_SetBacklight(const enum STATE state) {
+	if (state == ON) GPIOA->ODR |= GPIO_ODR_OD11;
+	else GPIOA->ODR &= ~GPIO_ODR_OD11;
+}
+
+void ST7735_HWReset(void) {
+	// RST low
+	GPIOA->ODR &= ~GPIO_ODR_OD10;
+
+	// Wait a bit
+	TIM_Delay_Milli(10);
+
+	// RST high
+	GPIOA->ODR |= GPIO_ODR_OD10;
+}
+
+// TODO : fix this function
+// id_buffer points to an array of at least 4 elements
+void ST7735_ReadID(uint8_t* id_buffer) {
+	ST7735_ReadBytes(RDDID, id_buffer, 4);
+}
