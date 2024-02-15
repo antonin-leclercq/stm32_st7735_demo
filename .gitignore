@@ -2,4 +2,4 @@
 Debug
 .cproject
 .project
-l476_sandbox Debug.launch
+stm32_st7735_demo Debug.launch

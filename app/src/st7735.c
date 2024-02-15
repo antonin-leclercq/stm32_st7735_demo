@@ -113,9 +113,6 @@ void ST7735_WriteByte(const uint8_t byte) {
 	// Transmit only mode
 	SPI1->CR1 |= SPI_CR1_BIDIOE;
 
-	// Set CS low
-	GPIOA->ODR &= ~GPIO_ODR_OD4;
-
 	// wait for TX buffer to empty
 	while((SPI1->SR & SPI_SR_TXE) != SPI_SR_TXE);
 
@@ -124,34 +121,35 @@ void ST7735_WriteByte(const uint8_t byte) {
 
 	// wait while SPI is busy
 	while((SPI1->SR & SPI_SR_BSY) != 0);
-
-	// Set CS high
-	GPIOA->ODR |= GPIO_ODR_OD4;
 }
 
 // TODO : fix this function
 void ST7735_ReadBytes(const uint8_t address, uint8_t* bytes, const uint8_t n) {
-	// Send address we want to read from
-	// Transmit only mode
-	SPI1->CR1 |= SPI_CR1_BIDIOE;
+	// When reading we must disable SPI then re-enable it in order to generate clock signal
 
-	// DC has to be low (command)
+	//////////////////////////////////////////// Sending the address of the register we want to read
+	//											 Not using the existing ST7735_SendCommand function because we want CS to remain low
+	// Command => DC Low
 	GPIOA->ODR &= ~GPIO_ODR_OD9;
 
 	// Set CS low
 	GPIOA->ODR &= ~GPIO_ODR_OD4;
 
-	// wait for TX buffer to empty
-	while((SPI1->SR & SPI_SR_TXE) != SPI_SR_TXE);
+	ST7735_WriteByte(address);
 
-	// write byte
-	*(__IO uint8_t*)&SPI1->DR = address;
+	/////////////////////////////////////////////////// Start reading
+
+	// Disable SPI
+	SPI1->CR1 &= ~SPI_CR1_SPE;
 
 	// Receive only mode then
 	SPI1->CR1 &= ~SPI_CR1_BIDIOE;
 
-	// DC has to be high when reading
+	// DC high when reading
 	GPIOA->ODR |= GPIO_ODR_OD9;
+
+	// Enable SPI back
+	SPI1->CR1 |= SPI_CR1_SPE;
 
 	for (uint8_t i = 0; i < n; ++i) {
 		// wait for RX buffer to not be empty
@@ -160,9 +158,6 @@ void ST7735_ReadBytes(const uint8_t address, uint8_t* bytes, const uint8_t n) {
 		// receive data
 		*(bytes + i) = *(__IO uint8_t*)&SPI1->DR;
 	}
-
-	// wait while SPI is busy
-	while((SPI1->SR & SPI_SR_BSY) != 0);
 
 	// Set CS high
 	GPIOA->ODR |= GPIO_ODR_OD4;
@@ -222,16 +217,28 @@ void ST7735_SendData(const uint8_t data) {
 	// Data => DC High
 	GPIOA->ODR |= GPIO_ODR_OD9;
 
+	// Set CS low
+	GPIOA->ODR &= ~GPIO_ODR_OD4;
+
 	// Send data
 	ST7735_WriteByte(data);
+
+	// Set CS high
+	GPIOA->ODR |= GPIO_ODR_OD4;
 }
 
 void ST7735_SendCommand(const uint8_t command) {
 	// Command => DC Low
 	GPIOA->ODR &= ~GPIO_ODR_OD9;
 
+	// Set CS low
+	GPIOA->ODR &= ~GPIO_ODR_OD4;
+
 	// Send command
 	ST7735_WriteByte(command);
+
+	// Set CS high
+	GPIOA->ODR |= GPIO_ODR_OD4;
 }
 
 void ST7735_SetBacklight(const enum STATE state) {
@@ -251,7 +258,23 @@ void ST7735_HWReset(void) {
 }
 
 // TODO : fix this function
-// id_buffer points to an array of at least 4 elements
-void ST7735_ReadID(uint8_t* id_buffer) {
-	ST7735_ReadBytes(RDDID, id_buffer, 4);
+void ST7735_ReadID(uint8_t* id_buffer, const enum WHICH_ID id) {
+	switch (id) {
+	case ALL_IDs:
+		// TODO: reading all IDs at once doesn't work, maybe due to a required "dummy clock"
+		ST7735_ReadBytes(RDDID, id_buffer, 4);
+		break;
+	case ID1:
+		ST7735_ReadBytes(RDID1, id_buffer, 1);
+		break;
+	case ID2:
+		ST7735_ReadBytes(RDID2, id_buffer, 1);
+		break;
+	case ID3:
+		ST7735_ReadBytes(RDID3, id_buffer, 1);
+		break;
+	default:
+		break;
+	}
+
 }

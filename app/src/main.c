@@ -23,15 +23,13 @@ int main(void) {
 
 	ST7735_Init();
 
-	// Print ST7735 IDs
-	uint8_t lcd_id[4] = {0};
+	// Print ST7735 ID1 (Manufacturer ID)
+	uint8_t id1_buffer = 0;
 
-	// TODO : Fix this function
-	// ST7735_ReadID(lcd_id);
+	ST7735_ReadID(&id1_buffer, ID1);
 
-	stm32_printf("[INFO] Manufacturer ID : %d\r\n", 	lcd_id[1]);
-	stm32_printf("[INFO] Driver version ID : %d\r\n", 	lcd_id[2]);
-	stm32_printf("[INFO] Driver ID : %d\r\n", 			lcd_id[3]);
+	// Manufacturer ID should 0x7C or 124 by default
+	stm32_printf("[INFO] Manufacturer ID : %d\r\n", id1_buffer);
 
 	ST7735_SetBacklight(ON);
 

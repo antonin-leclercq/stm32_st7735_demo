@@ -56,6 +56,13 @@ enum STATE {
 	ON,
 };
 
+enum WHICH_ID {
+	ALL_IDs,
+	ID1,
+	ID2,
+	ID3,
+};
+
 void ST7735_Init(void);
 
 // TODO : fix this function
@@ -70,7 +77,7 @@ void ST7735_SendData(const uint8_t data);
 void ST7735_SendCommand(const uint8_t command);
 
 // TODO : fix this function
-void ST7735_ReadID(uint8_t* id_buffer);
+void ST7735_ReadID(uint8_t* id_buffer, const enum WHICH_ID id);
 
 void ST7735_HWReset(void);
 
