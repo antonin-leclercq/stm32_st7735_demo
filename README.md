@@ -19,8 +19,11 @@ For SPI in half-duplex communication, the reference manual recommands adding a 1
 
 ## Details
 The communication between the MCU and the display is done through hardware SPI. <br>
-In this case the SPI1 peripheral is used. <br>
+In this case the SPI1 peripheral is used, in bi-directionnal mode (half-duplex communication). <br>
 The peripheral clock is set to 64MHz and the SCK frequency is set to 250kHz (for easier troubleshooting), which is the lowest achievable with a 64MHz input clock. <br>
-To improve data transmission speed, it is easily possible to change the baud rate up to 32MHz (though I haven't tested the program at this speed) by modifying the `SPI_BR` bits in the `CR1` register. <br>
+To improve data transmission speed, it is easily possible to change the data clock up to 32MHz (though I haven't tested the program at this speed) by modifying the `SPI_BR` bits in the `CR1` register. <br>
+The data is sent in an RGB 6-6-6 format or 18 bits per pixel. <br>
 
-Furthermore, the USART2 peripheral is also initialized to send debug infos at 57600 bauds.
+Furthermore, the USART2 peripheral is also initialized to send debug infos at 57600 bauds. <br>
+
+In the folder `./frame_gen`, there is a python script called `frame_gen.py` that can be used to convert an image to an array with RGB 6-6-6 format. The output is written to `./app/src/st7735_frame.c`. <br>
