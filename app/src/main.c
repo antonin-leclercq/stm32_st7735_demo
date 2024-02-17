@@ -33,7 +33,7 @@ int main(void) {
 
 	ST7735_SetBacklight(ON);
 
-	// Fill the LCD RAM
+	// Fill the LCD RAM with data from st7735_frame.c
 	ST7735_MemoryWrite();
 
 	while(1) {

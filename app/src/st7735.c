@@ -168,6 +168,9 @@ void ST7735_ReadBytes(const uint8_t address, uint8_t* bytes, const uint8_t n) {
 
 /////////////////////////////////////////////// Function to fill the LCD RAM
 void ST7735_MemoryWrite(void) {
+	// Writing to the LCD frame memory with RGB format 6-6-6
+	// Note that for other formats like 4-4-4 or 5-6-5, the data transmission is different
+
 	// Write to RAM
 	ST7735_SendCommand(RAMWR);
 
@@ -178,31 +181,13 @@ void ST7735_MemoryWrite(void) {
 	GPIOA->ODR &= ~GPIO_ODR_OD4;
 
 	// Loop through all pixels
-	for (uint32_t i = 0; i < PIXEL_WIDTH*PIXEL_HEIGHT; ++i) {
-		// EXAMPLE : ALL RED SCREEN
+	for (uint32_t i = 0; i < PIXEL_WIDTH*PIXEL_HEIGHT*3; ++i) {
 
-		// R
 		// wait for TX buffer to empty
 		while((SPI1->SR & SPI_SR_TXE) != SPI_SR_TXE);
 
 		// write byte
-		*(__IO uint8_t*)&SPI1->DR = 0x00;
-
-
-		// G
-		// wait for TX buffer to empty
-		while((SPI1->SR & SPI_SR_TXE) != SPI_SR_TXE);
-
-		// write byte
-		*(__IO uint8_t*)&SPI1->DR = 0xFC;
-
-
-		// B
-		// wait for TX buffer to empty
-		while((SPI1->SR & SPI_SR_TXE) != SPI_SR_TXE);
-
-		// write byte
-		*(__IO uint8_t*)&SPI1->DR = 0x00;
+		*(__IO uint8_t*)&SPI1->DR = *(frame_buffer + i);
 	}
 
 	// wait while SPI is busy
@@ -276,5 +261,4 @@ void ST7735_ReadID(uint8_t* id_buffer, const enum WHICH_ID id) {
 	default:
 		break;
 	}
-
 }

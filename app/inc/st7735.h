@@ -13,7 +13,7 @@
 #define PIXEL_WIDTH 128
 #define PIXEL_HEIGHT 160
 
-// ST7735S commands
+// System function commands
 #define NOP			0x00 // no operation
 #define SWRESET		0x01 // software reset
 #define RDDID		0x04 // read IDs
@@ -51,6 +51,28 @@
 #define RDID2		0xDB // read ID2
 #define RDID3		0xDC // read ID3
 
+// Panel function commands
+#define FRMCTR1		0xB1 // in normal mode
+#define FRMCTR2		0xB2 // in idle mode
+#define FRMCTR3		0xB3 // in partial mode + full colors
+#define INVCTR		0xB4 // display inversion control
+#define PWCTR1		0xC0 // power control setting
+#define PWCTR2		0xC1 // power control setting
+#define PWCTR3		0xC2 // in normal mode
+#define PWCTR4		0xC3 // in idle mode
+#define PWCTR5		0xC4 // in partial mode + full colors
+#define VMCTR1		0xC5 // VCOM control 1
+#define VMOFCTR		0xC7 // set VCOM offset control
+#define WRID2		0xD1 // set LCM (ID2) version code
+#define WRID3		0xD2 // set customer project (ID3) code
+#define NVCTR1		0xD9 // NVM control status
+#define NVCTR2		0xDE // NVM read command
+#define NVCTR3		0xDF // NVM write command
+#define GAMCTRP1	0xE0 // set Gamma adjustment (+ polarity)
+#define GAMCTRN1	0xE1 // set Gamma adjustment (- polarity)
+#define GCV			0xFC // Gate clock variable
+
+
 enum STATE {
 	OFF,
 	ON,
@@ -62,6 +84,10 @@ enum WHICH_ID {
 	ID2,
 	ID3,
 };
+
+// Found in st7735_frame.c
+// Frame buffer for RGB 6-6-6 format
+extern const uint8_t frame_buffer[PIXEL_WIDTH * PIXEL_HEIGHT * 3];
 
 void ST7735_Init(void);
 
