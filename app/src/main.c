@@ -33,8 +33,14 @@ int main(void) {
 
 	ST7735_SetBacklight(ON);
 
+	// Enable Interrupts
+	ST7735_NVIC_Init();
+
 	// Fill the LCD RAM with data from st7735_frame.c
-	ST7735_MemoryWrite();
+	ST7735_MemoryWriteDMA();
+
+	// Or do it without the DMA
+	// ST7735_MemoryWrite();
 
 	while(1) {
 

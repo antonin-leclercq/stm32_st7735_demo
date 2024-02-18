@@ -42,6 +42,27 @@
 /*            Cortex-M4 Processor Exceptions Handlers                         */
 /******************************************************************************/
 
+void DMA1_Channel3_IRQHandler(void) {
+	// This code should be executed every time the DMA is done copying the frame_buffer
+	// Test interrupt source (transfer complete)
+	if ((DMA1->ISR & DMA_ISR_TCIF3) == DMA_ISR_TCIF3) {
+		// Clear interrupt bit
+		DMA1->IFCR |= DMA_IFCR_CTCIF3;
+
+		// wait while SPI1 BSY flag is set
+		while((SPI1->SR & SPI_SR_BSY) == SPI_SR_BSY);
+
+		// Set CS high
+		GPIOA->ODR |= GPIO_ODR_OD4;
+
+		// Disable SPI1 TX DMA requests
+		SPI1->CR2 &= ~SPI_CR2_TXDMAEN;
+
+		// Disable DMA1 Channel 3
+		DMA1_Channel3->CCR &= ~DMA_CCR_EN;
+	}
+}
+
 /**
   * @brief   This function handles NMI exception.
   * @param  None

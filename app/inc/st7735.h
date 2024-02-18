@@ -90,6 +90,7 @@ enum WHICH_ID {
 extern const uint8_t frame_buffer[PIXEL_WIDTH * PIXEL_HEIGHT * 3];
 
 void ST7735_Init(void);
+void ST7735_NVIC_Init(void);
 
 // TODO : fix this function
 void ST7735_ReadBytes(const uint8_t address, uint8_t* bytes, const uint8_t n);
@@ -97,6 +98,7 @@ void ST7735_ReadBytes(const uint8_t address, uint8_t* bytes, const uint8_t n);
 void ST7735_WriteByte(const uint8_t byte);
 
 void ST7735_MemoryWrite(void);
+void ST7735_MemoryWriteDMA(void);
 
 void ST7735_SendData(const uint8_t data);
 

@@ -28,6 +28,12 @@ void ST7735_Init(void) {
 	// (Debug/Troubleshooting purposes) Baud rate is 250kHz => BR = /256
 	//
 	// Default pixel color format : 18bits / pixel (6/6/6)
+	//
+	// Using DMA1 Channel 3 (SPI_TX) to unload CPU for frame transmission
+	// Memory to peripheral => frame_buffer to SPI1->DR
+	// Memory size and peripheral size are 8 bits (default)
+	// Memory increment enabled, peripheral increment disabled
+	// Circular mode disabled (since frame_buffer is not updated)
 
 	// Enable GPIOA clock
 	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
@@ -58,6 +64,43 @@ void ST7735_Init(void) {
 	// RST is high by default
 	GPIOA->ODR |= GPIO_ODR_OD10;
 
+	//////////////////////////////////////////////// end of GPIO configuration, begin DMA initialization
+
+	// Enable DMA1
+	RCC->AHB1ENR |= RCC_AHB1ENR_DMA1EN;
+
+	// Reset DMA1 channel 3 configuration
+	DMA1_Channel3->CCR = 0x00000000;
+	DMA1_Channel3->CNDTR = 0x00000000;
+
+	// Set priority to medium
+	DMA1_Channel3->CCR |= (0x01 << DMA_CCR_PL_Pos);
+
+	// Enable memory increment
+	DMA1_Channel3->CCR |= DMA_CCR_MINC;
+
+	// Set direction memory => peripheral
+	DMA1_Channel3->CCR |= DMA_CCR_DIR;
+
+	// Enable Transfer complete interrupt
+	DMA1_Channel3->CCR |= DMA_CCR_TCIE;
+
+	// Set number of data to transfer (number of pixels * 3(RGB))
+	DMA1_Channel3->CNDTR = (uint32_t) PIXEL_WIDTH * PIXEL_HEIGHT * 3;
+
+	// Set peripheral address
+	DMA1_Channel3->CPAR = (uint32_t) &SPI1->DR;
+
+	// Set memory address
+	DMA1_Channel3->CMAR = (uint32_t) frame_buffer;
+
+	// Map DMA to SPI1_TX
+	DMA1_CSELR->CSELR &= ~DMA_CSELR_C3S;
+	DMA1_CSELR->CSELR |= (0x01 << DMA_CSELR_C3S_Pos);
+
+
+	//////////////////////////////////////////////// end of DMA configuration, begin SPI initialization
+
 	// Enable SPI1 clock
 	RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
 
@@ -86,7 +129,7 @@ void ST7735_Init(void) {
 	// Enable SPI1
 	SPI1->CR1 |= SPI_CR1_SPE;
 
-////////////////////////////////////////////////// end of STM32 configuration, begin LCD initialization
+////////////////////////////////////////////////// end of SPI configuration, begin LCD initialization
 
 	// Reset ST7735
 	// Hardware reset
@@ -107,6 +150,12 @@ void ST7735_Init(void) {
 
 	// Display ON
 	ST7735_SendCommand(DISPON);
+}
+
+void ST7735_NVIC_Init(void) {
+	// Priority is set to 1, (high priority)
+	NVIC_SetPriority(DMA1_Channel3_IRQn, 1);
+	NVIC_EnableIRQ(DMA1_Channel3_IRQn);
 }
 
 void ST7735_WriteByte(const uint8_t byte) {
@@ -195,6 +244,30 @@ void ST7735_MemoryWrite(void) {
 
 	// Set CS high
 	GPIOA->ODR |= GPIO_ODR_OD4;
+}
+
+void ST7735_MemoryWriteDMA(void) {
+	// Writing to the LCD frame memory with RGB format 6-6-6
+	// Note that for other formats like 4-4-4 or 5-6-5, the data transmission is different
+
+	// Write to RAM
+	ST7735_SendCommand(RAMWR);
+
+	// DC has to be high (data)
+	GPIOA->ODR |= GPIO_ODR_OD9;
+
+	// Set CS low
+	GPIOA->ODR &= ~GPIO_ODR_OD4;
+
+	// Enable DMA1_Channel3
+	DMA1_Channel3->CCR |= DMA_CCR_EN;
+
+	// Enable TX DMA requests
+	SPI1->CR2 |= SPI_CR2_TXDMAEN;
+
+	// DMA is now handling the data transfer from our frame_buffer to the SPI peripheral
+
+	// Disabling DMA after transfer complete and setting CS back to high is done in the ISR (find code in stm32l4xx_it.c)
 }
 
 
