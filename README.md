@@ -26,4 +26,11 @@ The data is sent in an RGB 6-6-6 format or 18 bits per pixel. <br>
 
 Furthermore, the USART2 peripheral is also initialized to send debug infos at 57600 bauds. <br>
 
+The transfer of the frame buffer from the MCU memory to the SPI peripheral can be also done by DMA, which helps unload the CPU. <br>
+
 In the folder `./frame_gen`, there is a python script called `frame_gen.py` that can be used to convert an image to an array with RGB 6-6-6 format. The output is written to `./app/src/st7735_frame.c`. <br>
+
+## Useful documents:
+[STM32L476 datasheet](https://www.st.com/resource/en/datasheet/stm32l476je.pdf) <br>
+[STM32L4 series reference manual](https://www.st.com/resource/en/reference_manual/rm0351-stm32l47xxx-stm32l48xxx-stm32l49xxx-and-stm32l4axxx-advanced-armbased-32bit-mcus-stmicroelectronics.pdf) <br>
+[ST7735 datasheet](https://www.crystalfontz.com/controllers/Sitronix/ST7735/)
