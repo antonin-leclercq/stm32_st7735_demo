@@ -35,7 +35,7 @@ void UART_Init(void) {
 	// Reset USART2 configuration
 	USART2->CR1 = 0x00000000;
 	USART2->CR2 = 0x00000000;
-	USART3->CR3 = 0x00000000;
+	USART2->CR3 = 0x00000000;
 
 	// Set baud rate
 	USART2->BRR = (uint32_t)1111;

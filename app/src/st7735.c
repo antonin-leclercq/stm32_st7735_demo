@@ -33,7 +33,7 @@ void ST7735_Init(void) {
 	// Memory to peripheral => frame_buffer to SPI1->DR
 	// Memory size and peripheral size are 8 bits (default)
 	// Memory increment enabled, peripheral increment disabled
-	// Circular mode disabled (since frame_buffer is not updated)
+	// Circular mode disabled (since frame_buffer is constant / not updated)
 
 	// Enable GPIOA clock
 	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
