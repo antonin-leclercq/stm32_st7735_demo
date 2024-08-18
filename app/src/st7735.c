@@ -148,6 +148,10 @@ void ST7735_Init(void) {
 	// Must wait at least 120ms after SLPOUT
 	TIM_Delay_Milli(130);
 
+	// Set column and row address sets to full screen
+	ST7735_ColumnAddressSet(0, PIXEL_WIDTH-1);
+	ST7735_RowAddressSet(0, PIXEL_HEIGHT-1);
+
 	// Display ON
 	ST7735_SendCommand(DISPON);
 }
@@ -172,7 +176,20 @@ void ST7735_WriteByte(const uint8_t byte) {
 	while((SPI1->SR & SPI_SR_BSY) != 0);
 }
 
-// TODO : fix this function
+void ST7735_WriteWord(const uint16_t word) {
+	// Transmit only mode
+	SPI1->CR1 |= SPI_CR1_BIDIOE;
+
+	// wait for TX buffer to empty
+	while((SPI1->SR & SPI_SR_TXE) != SPI_SR_TXE);
+
+	// write byte
+	SPI1->DR = word;
+
+	// wait while SPI is busy
+	while((SPI1->SR & SPI_SR_BSY) != 0);
+}
+
 void ST7735_ReadBytes(const uint8_t address, uint8_t* bytes, const uint8_t n) {
 	// When reading we must disable SPI then re-enable it in order to generate clock signal
 
@@ -184,12 +201,31 @@ void ST7735_ReadBytes(const uint8_t address, uint8_t* bytes, const uint8_t n) {
 	// Set CS low
 	GPIOA->ODR &= ~GPIO_ODR_OD4;
 
-	ST7735_WriteByte(address);
+	if (n >= 2) {
+		// 9 bit data to make host output a dummy clock cycle required when reading >= 2 bytes
+		// NOTE: Make sure to write to SPI DS the right way because if the register is cleared (=0x0) it is automatically set back to 0x07
+		SPI1->CR2 |= (0x08 << SPI_CR2_DS_Pos);
+		SPI1->CR2 &= ~(0x07 << SPI_CR2_DS_Pos);
+		ST7735_WriteWord(address << 1);
+	}
+	else {
+		ST7735_WriteByte(address);
+	}
 
 	/////////////////////////////////////////////////// Start reading
 
 	// Disable SPI
 	SPI1->CR1 &= ~SPI_CR1_SPE;
+
+	if (n >= 2)	{
+		// Go back to 8 bit data size
+		// NOTE: Make sure to write to SPI DS the right way because if the register is cleared (=0x0) it is automatically set back to 0x07
+		SPI1->CR2 |= (0x07 << SPI_CR2_DS_Pos);
+		SPI1->CR2 &= ~(0x08 << SPI_CR2_DS_Pos);
+
+		// Wait another 4µs, not sure why but it works @ Baud rate = 250kHz
+		TIM_Delay_Micro(4);
+	}
 
 	// Receive only mode then
 	SPI1->CR1 &= ~SPI_CR1_BIDIOE;
@@ -215,13 +251,9 @@ void ST7735_ReadBytes(const uint8_t address, uint8_t* bytes, const uint8_t n) {
 	SPI1->CR1 |= SPI_CR1_BIDIOE;
 }
 
-/////////////////////////////////////////////// Function to fill the LCD RAM
-void ST7735_MemoryWrite(void) {
-	// Writing to the LCD frame memory with RGB format 6-6-6
-	// Note that for other formats like 4-4-4 or 5-6-5, the data transmission is different
-
-	// Write to RAM
-	ST7735_SendCommand(RAMWR);
+void ST7735_WriteBytes(const uint8_t address, const uint8_t* bytes, const uint32_t n) {
+	// Send address we want to write to
+	ST7735_SendCommand(address);
 
 	// DC has to be high (data)
 	GPIOA->ODR |= GPIO_ODR_OD9;
@@ -229,14 +261,14 @@ void ST7735_MemoryWrite(void) {
 	// Set CS low
 	GPIOA->ODR &= ~GPIO_ODR_OD4;
 
-	// Loop through all pixels
-	for (uint32_t i = 0; i < PIXEL_WIDTH*PIXEL_HEIGHT*3; ++i) {
+	// Loop through bytes
+	for (uint32_t i = 0; i < n; ++i) {
 
 		// wait for TX buffer to empty
 		while((SPI1->SR & SPI_SR_TXE) != SPI_SR_TXE);
 
 		// write byte
-		*(__IO uint8_t*)&SPI1->DR = *(frame_buffer + i);
+		*(__IO uint8_t*)&SPI1->DR = *(bytes + i);
 	}
 
 	// wait while SPI is busy
@@ -244,6 +276,13 @@ void ST7735_MemoryWrite(void) {
 
 	// Set CS high
 	GPIOA->ODR |= GPIO_ODR_OD4;
+}
+
+/////////////////////////////////////////////// Function to fill the LCD RAM
+void ST7735_MemoryWrite(void) {
+	// Writing to the LCD frame memory with RGB format 6-6-6
+	// Note that for other formats like 4-4-4 or 5-6-5, the data transmission is different
+	ST7735_WriteBytes(RAMWR, frame_buffer, PIXEL_WIDTH*PIXEL_HEIGHT*3);
 }
 
 void ST7735_MemoryWriteDMA(void) {
@@ -315,12 +354,11 @@ void ST7735_HWReset(void) {
 	GPIOA->ODR |= GPIO_ODR_OD10;
 }
 
-// TODO : fix this function
 void ST7735_ReadID(uint8_t* id_buffer, const enum WHICH_ID id) {
 	switch (id) {
 	case ALL_IDs:
-		// TODO: reading all IDs at once doesn't work, maybe due to a required "dummy clock"
-		ST7735_ReadBytes(RDDID, id_buffer, 4);
+		// Reading more than a byte requires a dummy clock cycle put by the host after the command / register address
+		ST7735_ReadBytes(RDDID, id_buffer, 3);
 		break;
 	case ID1:
 		ST7735_ReadBytes(RDID1, id_buffer, 1);
@@ -334,4 +372,24 @@ void ST7735_ReadID(uint8_t* id_buffer, const enum WHICH_ID id) {
 	default:
 		break;
 	}
+}
+
+void ST7735_ColumnAddressSet(const uint8_t xs, const uint8_t xe) {
+	if (xe < xs) return;
+
+	const uint8_t bytes[] = {
+			0, xs, 0, xe
+	};
+
+	ST7735_WriteBytes(CASET, bytes, 4);
+}
+
+void ST7735_RowAddressSet(const uint8_t ys, const uint8_t ye) {
+	if (ye < ys) return;
+
+	const uint8_t bytes[] = {
+			0, ys, 0, ye
+	};
+
+	ST7735_WriteBytes(RASET, bytes, 4);
 }

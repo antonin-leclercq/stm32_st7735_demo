@@ -17,19 +17,22 @@ int main(void) {
 
 	TIM_Delay_Init();
 
+	// Baud rate: 57600
 	UART_Init();
 
 	stm32_printf("ST7735 - Debug monitor\r\n");
 
 	ST7735_Init();
 
-	// Print ST7735 ID1 (Manufacturer ID)
-	uint8_t id1_buffer = 0;
+	// Print ST7735 ID1 (Manufacturer ID), ID2 (driver version ID), ID3 (driver ID)
+	uint8_t id_buffer[3] = {0};
 
-	ST7735_ReadID(&id1_buffer, ID1);
+	ST7735_ReadID(id_buffer, ALL_IDs);
 
-	// Manufacturer ID should 0x7C or 124 by default
-	stm32_printf("[INFO] Manufacturer ID : %d\r\n", id1_buffer);
+	// Manufacturer ID should be 0x7C or 124 by default
+	stm32_printf("[INFO] Manufacturer ID : %d\r\n", id_buffer[0]);
+	stm32_printf("[INFO] Driver version ID : %d\r\n", id_buffer[1]);
+	stm32_printf("[INFO] Driver ID : %d\r\n", id_buffer[2]);
 
 	ST7735_SetBacklight(ON);
 
