@@ -92,10 +92,12 @@ extern const uint8_t frame_buffer[PIXEL_WIDTH * PIXEL_HEIGHT * 3];
 void ST7735_Init(void);
 void ST7735_NVIC_Init(void);
 
+void ST7735_WriteByte(const uint8_t byte);
+void ST7735_WriteWord(const uint16_t word);
+
 // TODO : fix this function
 void ST7735_ReadBytes(const uint8_t address, uint8_t* bytes, const uint8_t n);
-
-void ST7735_WriteByte(const uint8_t byte);
+void ST7735_WriteBytes(const uint8_t address, const uint8_t* bytes, const uint32_t n);
 
 void ST7735_MemoryWrite(void);
 void ST7735_MemoryWriteDMA(void);
@@ -110,5 +112,8 @@ void ST7735_ReadID(uint8_t* id_buffer, const enum WHICH_ID id);
 void ST7735_HWReset(void);
 
 void ST7735_SetBacklight(const enum STATE state);
+
+void ST7735_ColumnAddressSet(const uint8_t xs, const uint8_t xe);
+void ST7735_RowAddressSet(const uint8_t ys, const uint8_t ye);
 
 #endif /* APP_INC_ST7735_H_ */
