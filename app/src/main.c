@@ -10,6 +10,8 @@
 
 static void System_ClockInit(void);
 
+extern __IO uint8_t flag__dma1_channel3_done;
+
 int main(void) {
 
 	// System clock = PCLK1 = PCLK2 = 64MHz
@@ -34,7 +36,7 @@ int main(void) {
 	stm32_printf("[INFO] Driver version ID : %d\r\n", id_buffer[1]);
 	stm32_printf("[INFO] Driver ID : %d\r\n", id_buffer[2]);
 
-	ST7735_SetBacklight(ON);
+	ST7735_SetBacklight(BL_ON);
 
 	// Enable Interrupts
 	ST7735_NVIC_Init();
@@ -44,6 +46,13 @@ int main(void) {
 
 	// Or do it without the DMA
 	// ST7735_MemoryWrite();
+
+	// Draw some rectangles
+	// Note that last row / columns index is included
+	while(flag__dma1_channel3_done == 0);
+	ST7735_DrawRectangle(10, 10, 19, 19, RED_666);
+	ST7735_DrawRectangle(20, 20, 29, 29, GREEN_666);
+	ST7735_DrawRectangle(30, 30, 39, 39, BLUE_666);
 
 	while(1) {
 

@@ -72,10 +72,15 @@
 #define GAMCTRN1	0xE1 // set Gamma adjustment (- polarity)
 #define GCV			0xFC // Gate clock variable
 
+// Colors (RGB 6-6-6 format)
+#define RED_666 	0x3F000
+#define GREEN_666	0x00FC0
+#define BLUE_666	0x0003F
 
-enum STATE {
-	OFF,
-	ON,
+// For the backlight
+enum BL_STATE {
+	BL_OFF,
+	BL_ON,
 };
 
 enum WHICH_ID {
@@ -84,6 +89,7 @@ enum WHICH_ID {
 	ID2,
 	ID3,
 };
+
 
 // Found in st7735_frame.c
 // Frame buffer for RGB 6-6-6 format
@@ -95,7 +101,6 @@ void ST7735_NVIC_Init(void);
 void ST7735_WriteByte(const uint8_t byte);
 void ST7735_WriteWord(const uint16_t word);
 
-// TODO : fix this function
 void ST7735_ReadBytes(const uint8_t address, uint8_t* bytes, const uint8_t n);
 void ST7735_WriteBytes(const uint8_t address, const uint8_t* bytes, const uint32_t n);
 
@@ -106,14 +111,15 @@ void ST7735_SendData(const uint8_t data);
 
 void ST7735_SendCommand(const uint8_t command);
 
-// TODO : fix this function
 void ST7735_ReadID(uint8_t* id_buffer, const enum WHICH_ID id);
 
 void ST7735_HWReset(void);
 
-void ST7735_SetBacklight(const enum STATE state);
+void ST7735_SetBacklight(const enum BL_STATE state);
 
 void ST7735_ColumnAddressSet(const uint8_t xs, const uint8_t xe);
 void ST7735_RowAddressSet(const uint8_t ys, const uint8_t ye);
+
+void ST7735_DrawRectangle(const uint8_t x_start, const uint8_t y_start, const uint8_t x_end, const uint8_t y_end, const uint32_t color);
 
 #endif /* APP_INC_ST7735_H_ */

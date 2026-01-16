@@ -8,6 +8,8 @@
 
 #include "st7735.h"
 
+__IO uint8_t flag__dma1_channel3_done;
+
 void ST7735_Init(void) {
 
 	// Using SPI1, 8 bits / bi-directionnal interface
@@ -304,6 +306,8 @@ void ST7735_MemoryWriteDMA(void) {
 	// Enable TX DMA requests
 	SPI1->CR2 |= SPI_CR2_TXDMAEN;
 
+	flag__dma1_channel3_done = 0;
+
 	// DMA is now handling the data transfer from our frame_buffer to the SPI peripheral
 
 	// Disabling DMA after transfer complete and setting CS back to high is done in the ISR (find code in stm32l4xx_it.c)
@@ -338,8 +342,8 @@ void ST7735_SendCommand(const uint8_t command) {
 	GPIOA->ODR |= GPIO_ODR_OD4;
 }
 
-void ST7735_SetBacklight(const enum STATE state) {
-	if (state == ON) GPIOA->ODR |= GPIO_ODR_OD11;
+void ST7735_SetBacklight(const enum BL_STATE state) {
+	if (state == BL_ON) GPIOA->ODR |= GPIO_ODR_OD11;
 	else GPIOA->ODR &= ~GPIO_ODR_OD11;
 }
 
@@ -375,7 +379,7 @@ void ST7735_ReadID(uint8_t* id_buffer, const enum WHICH_ID id) {
 }
 
 void ST7735_ColumnAddressSet(const uint8_t xs, const uint8_t xe) {
-	if (xe < xs) return;
+	if (xe < xs || xe > PIXEL_WIDTH-1) return;
 
 	const uint8_t bytes[] = {
 			0, xs, 0, xe
@@ -385,11 +389,65 @@ void ST7735_ColumnAddressSet(const uint8_t xs, const uint8_t xe) {
 }
 
 void ST7735_RowAddressSet(const uint8_t ys, const uint8_t ye) {
-	if (ye < ys) return;
+	if (ye < ys || ye > PIXEL_HEIGHT-1) return;
 
 	const uint8_t bytes[] = {
 			0, ys, 0, ye
 	};
 
 	ST7735_WriteBytes(RASET, bytes, 4);
+}
+
+void ST7735_DrawRectangle(const uint8_t x_start, const uint8_t y_start, const uint8_t x_end, const uint8_t y_end, const uint32_t color)
+{
+	// Color format:
+	// For 6-6-6 color format:
+	// Use first 18LSBs, upper 6 bits are red, lower 6 bits are blue, send blue component first
+
+	ST7735_ColumnAddressSet(x_start, x_end);
+	ST7735_RowAddressSet(y_start, y_end);
+
+	const uint32_t size = (x_end - x_start + 1) * (y_end - y_start + 1);
+
+	// Extract RGB 6-6-6 colors and left shift twice each component
+	const uint8_t bytes[] = { ((color & 0x3F000) >> 12) << 2,
+							((color & 0xFC0) >> 6) << 2,
+							(color & 0x3F) << 2 };
+
+	// Send address we want to write to
+	ST7735_SendCommand(RAMWR);
+
+	// DC has to be high (data)
+	GPIOA->ODR |= GPIO_ODR_OD9;
+
+	// Set CS low
+	GPIOA->ODR &= ~GPIO_ODR_OD4;
+
+	// Loop through bytes
+	for (uint32_t i = 0; i < size; ++i) {
+
+		// wait for TX buffer to empty
+		while((SPI1->SR & SPI_SR_TXE) != SPI_SR_TXE);
+
+		// write red byte
+		*(__IO uint8_t*)&SPI1->DR = *(bytes);
+
+		// wait for TX buffer to empty
+		while((SPI1->SR & SPI_SR_TXE) != SPI_SR_TXE);
+
+		// write green byte
+		*(__IO uint8_t*)&SPI1->DR = *(bytes + 1);
+
+		// wait for TX buffer to empty
+		while((SPI1->SR & SPI_SR_TXE) != SPI_SR_TXE);
+
+		// write blue byte
+		*(__IO uint8_t*)&SPI1->DR = *(bytes + 2);
+	}
+
+	// wait while SPI is busy
+	while((SPI1->SR & SPI_SR_BSY) != 0);
+
+	// Set CS high
+	GPIOA->ODR |= GPIO_ODR_OD4;
 }

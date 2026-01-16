@@ -42,6 +42,8 @@
 /*            Cortex-M4 Processor Exceptions Handlers                         */
 /******************************************************************************/
 
+extern __IO uint8_t flag__dma1_channel3_done;
+
 void DMA1_Channel3_IRQHandler(void) {
 	// This code should be executed every time the DMA is done copying the frame_buffer
 	// Test interrupt source (transfer complete)
@@ -60,6 +62,8 @@ void DMA1_Channel3_IRQHandler(void) {
 
 		// Disable DMA1 Channel 3
 		DMA1_Channel3->CCR &= ~DMA_CCR_EN;
+
+		flag__dma1_channel3_done = 1;
 	}
 }
 
