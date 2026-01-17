@@ -151,8 +151,8 @@ void ST7735_Init(void) {
 	TIM_Delay_Milli(130);
 
 	// Set column and row address sets to full screen
-	ST7735_ColumnAddressSet(0, PIXEL_WIDTH-1);
-	ST7735_RowAddressSet(0, PIXEL_HEIGHT-1);
+	ST7735_SetColumnAddress(0, PIXEL_WIDTH-1);
+	ST7735_SetRowAddress(0, PIXEL_HEIGHT-1);
 
 	// Display ON
 	ST7735_SendCommand(DISPON);
@@ -281,10 +281,21 @@ void ST7735_WriteBytes(const uint8_t address, const uint8_t* bytes, const uint32
 }
 
 /////////////////////////////////////////////// Function to fill the LCD RAM
-void ST7735_MemoryWrite(void) {
+void ST7735_MemoryWrite(const uint8_t* buffer, const uint8_t frame_x_size, const uint8_t frame_y_size,
+		const uint8_t x_start, const uint8_t y_start) {
 	// Writing to the LCD frame memory with RGB format 6-6-6
 	// Note that for other formats like 4-4-4 or 5-6-5, the data transmission is different
-	ST7735_WriteBytes(RAMWR, frame_buffer, PIXEL_WIDTH*PIXEL_HEIGHT*3);
+
+	// Calculate end point
+	const uint8_t x_end = x_start + frame_x_size -1;
+	const uint8_t y_end = y_start + frame_y_size -1;
+
+	// Set memory zone to write to
+	ST7735_SetColumnAddress(x_start, x_end);
+	ST7735_SetRowAddress(y_start, y_end);
+
+	// Write to controller memory
+	ST7735_WriteBytes(RAMWR, buffer, frame_x_size*frame_y_size*3);
 }
 
 void ST7735_MemoryWriteDMA(void) {
@@ -378,7 +389,7 @@ void ST7735_ReadID(uint8_t* id_buffer, const enum WHICH_ID id) {
 	}
 }
 
-void ST7735_ColumnAddressSet(const uint8_t xs, const uint8_t xe) {
+void ST7735_SetColumnAddress(const uint8_t xs, const uint8_t xe) {
 	if (xe < xs || xe > PIXEL_WIDTH-1) return;
 
 	const uint8_t bytes[] = {
@@ -388,7 +399,7 @@ void ST7735_ColumnAddressSet(const uint8_t xs, const uint8_t xe) {
 	ST7735_WriteBytes(CASET, bytes, 4);
 }
 
-void ST7735_RowAddressSet(const uint8_t ys, const uint8_t ye) {
+void ST7735_SetRowAddress(const uint8_t ys, const uint8_t ye) {
 	if (ye < ys || ye > PIXEL_HEIGHT-1) return;
 
 	const uint8_t bytes[] = {
@@ -398,14 +409,28 @@ void ST7735_RowAddressSet(const uint8_t ys, const uint8_t ye) {
 	ST7735_WriteBytes(RASET, bytes, 4);
 }
 
+void ST7735_SetMirror(const uint32_t x_mirror, const uint32_t y_mirror)
+{
+	// Read current MADCTL configuration
+	uint8_t madtcl = 0;
+	ST7735_ReadBytes(RDDMADTCL, &madtcl, 1);
+
+	// Update with parameters
+	madtcl &= ~0b11000000;
+	madtcl |= ((x_mirror & 0x01) << 6) | ((y_mirror & 0x01) << 7);
+
+	// Send back to controller
+	ST7735_WriteBytes(MADTCL, &madtcl, 1);
+}
+
 void ST7735_DrawRectangle(const uint8_t x_start, const uint8_t y_start, const uint8_t x_end, const uint8_t y_end, const uint32_t color)
 {
 	// Color format:
 	// For 6-6-6 color format:
 	// Use first 18LSBs, upper 6 bits are red, lower 6 bits are blue, send blue component first
 
-	ST7735_ColumnAddressSet(x_start, x_end);
-	ST7735_RowAddressSet(y_start, y_end);
+	ST7735_SetColumnAddress(x_start, x_end);
+	ST7735_SetRowAddress(y_start, y_end);
 
 	const uint32_t size = (x_end - x_start + 1) * (y_end - y_start + 1);
 

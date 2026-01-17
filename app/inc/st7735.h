@@ -104,7 +104,7 @@ void ST7735_WriteWord(const uint16_t word);
 void ST7735_ReadBytes(const uint8_t address, uint8_t* bytes, const uint8_t n);
 void ST7735_WriteBytes(const uint8_t address, const uint8_t* bytes, const uint32_t n);
 
-void ST7735_MemoryWrite(void);
+void ST7735_MemoryWrite(const uint8_t* buffer, const uint8_t frame_x_size, const uint8_t frame_y_size, const uint8_t x_start, const uint8_t y_start);
 void ST7735_MemoryWriteDMA(void);
 
 void ST7735_SendData(const uint8_t data);
@@ -117,8 +117,9 @@ void ST7735_HWReset(void);
 
 void ST7735_SetBacklight(const enum BL_STATE state);
 
-void ST7735_ColumnAddressSet(const uint8_t xs, const uint8_t xe);
-void ST7735_RowAddressSet(const uint8_t ys, const uint8_t ye);
+void ST7735_SetColumnAddress(const uint8_t xs, const uint8_t xe);
+void ST7735_SetRowAddress(const uint8_t ys, const uint8_t ye);
+void ST7735_SetMirror(const uint32_t x_mirror, const uint32_t y_mirror);
 
 void ST7735_DrawRectangle(const uint8_t x_start, const uint8_t y_start, const uint8_t x_end, const uint8_t y_end, const uint32_t color);
 
