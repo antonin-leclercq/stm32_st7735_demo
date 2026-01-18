@@ -106,7 +106,7 @@ void ST7735_ReadBytes(const uint8_t address, uint8_t* bytes, const uint8_t n);
 void ST7735_WriteBytes(const uint8_t address, const uint8_t* bytes, const uint32_t n);
 
 void ST7735_MemoryWrite(const uint8_t* buffer, const uint8_t frame_x_size, const uint8_t frame_y_size, const uint8_t x_start, const uint8_t y_start);
-void ST7735_MemoryWriteDMA(void);
+void ST7735_MemoryWriteDMA(const uint8_t* buffer, const uint8_t frame_x_size, const uint8_t frame_y_size, const uint8_t x_start, const uint8_t y_start);
 
 void ST7735_SendData(const uint8_t data);
 

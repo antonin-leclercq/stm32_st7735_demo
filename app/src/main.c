@@ -11,7 +11,8 @@
 static void System_ClockInit(void);
 
 extern __IO uint8_t flag__dma1_channel3_done;
-extern uint8_t ffrank_buffer[];
+extern const uint8_t ffrank_buffer[];
+extern const uint8_t frame_buffer[];
 
 int main(void) {
 
@@ -43,7 +44,7 @@ int main(void) {
 	ST7735_NVIC_Init();
 
 	// Fill the LCD RAM with data from st7735_frame.c
-	ST7735_MemoryWriteDMA();
+	ST7735_MemoryWriteDMA(frame_buffer, 128, 160, 0, 0);
 
 	// Draw some rectangles
 	// Note that last row / columns index is included
@@ -60,7 +61,7 @@ int main(void) {
 
 	// Write same 40x40 pixel image at position (50,100), should be flipped
 	// Note that x' <= 128 - x - frame_x_size
-	ST7735_MemoryWrite(ffrank_buffer, 40, 40, 128-50-40, 100);
+	ST7735_MemoryWriteDMA(ffrank_buffer, 40, 40, 128-50-40, 100);
 
 	while(1) {
 

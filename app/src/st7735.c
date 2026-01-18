@@ -8,7 +8,7 @@
 
 #include "st7735.h"
 
-__IO uint8_t flag__dma1_channel3_done = 0;
+__IO uint8_t flag__dma1_channel3_done = 1;
 
 void ST7735_Init(void) {
 
@@ -314,9 +314,21 @@ void ST7735_MemoryWrite(const uint8_t* buffer, const uint8_t frame_x_size, const
 	ST7735_WriteBytes(RAMWR, buffer, frame_x_size*frame_y_size*3);
 }
 
-void ST7735_MemoryWriteDMA(void) {
+void ST7735_MemoryWriteDMA(const uint8_t* buffer, const uint8_t frame_x_size, const uint8_t frame_y_size,
+		const uint8_t x_start, const uint8_t y_start) {
 	// Writing to the LCD frame memory with RGB format 6-6-6
 	// Note that for other formats like 4-4-4 or 5-6-5, the data transmission is different
+
+	// Configure DMA source address and data count
+	if(ST7735_ConfigDMA((uint32_t)buffer, frame_x_size*frame_y_size*3) == 0) return;
+
+	// Calculate end point
+	const uint8_t x_end = x_start + frame_x_size -1;
+	const uint8_t y_end = y_start + frame_y_size -1;
+
+	// Set memory zone to write to
+	ST7735_SetColumnAddress(x_start, x_end);
+	ST7735_SetRowAddress(y_start, y_end);
 
 	// Write to RAM
 	ST7735_SendCommand(RAMWR);
