@@ -8,7 +8,7 @@
 
 #include "st7735.h"
 
-__IO uint8_t flag__dma1_channel3_done;
+__IO uint8_t flag__dma1_channel3_done = 0;
 
 void ST7735_Init(void) {
 
@@ -87,14 +87,11 @@ void ST7735_Init(void) {
 	// Enable Transfer complete interrupt
 	DMA1_Channel3->CCR |= DMA_CCR_TCIE;
 
-	// Set number of data to transfer (number of pixels * 3(RGB))
-	DMA1_Channel3->CNDTR = (uint32_t) PIXEL_WIDTH * PIXEL_HEIGHT * 3;
-
 	// Set peripheral address
 	DMA1_Channel3->CPAR = (uint32_t) &SPI1->DR;
 
-	// Set memory address
-	DMA1_Channel3->CMAR = (uint32_t) frame_buffer;
+	// Configure DMA source address and data count
+	ST7735_ConfigDMA((uint32_t)frame_buffer, PIXEL_WIDTH*PIXEL_HEIGHT*3);
 
 	// Map DMA to SPI1_TX
 	DMA1_CSELR->CSELR &= ~DMA_CSELR_C3S;
@@ -162,6 +159,25 @@ void ST7735_NVIC_Init(void) {
 	// Priority is set to 1, (high priority)
 	NVIC_SetPriority(DMA1_Channel3_IRQn, 1);
 	NVIC_EnableIRQ(DMA1_Channel3_IRQn);
+}
+
+uint32_t ST7735_ConfigDMA(const uint32_t mem_address, const uint32_t byte_count)
+{
+	if(flag__dma1_channel3_done == 0) return 0;
+
+	// Make sure that SPI1 TX DMA requests are disabled
+	SPI1->CR2 &= ~SPI_CR2_TXDMAEN;
+
+	// Make sure that DMA1 Channel 3 is disabled
+	DMA1_Channel3->CCR &= ~DMA_CCR_EN;
+
+	// Set memory address
+	DMA1_Channel3->CMAR = mem_address;
+
+	// Set number of data to transfer
+	DMA1_Channel3->CNDTR = byte_count;
+
+	return 1;
 }
 
 void ST7735_WriteByte(const uint8_t byte) {

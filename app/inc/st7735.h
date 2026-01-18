@@ -97,6 +97,7 @@ extern const uint8_t frame_buffer[PIXEL_WIDTH * PIXEL_HEIGHT * 3];
 
 void ST7735_Init(void);
 void ST7735_NVIC_Init(void);
+uint32_t ST7735_ConfigDMA(const uint32_t mem_address, const uint32_t byte_count);
 
 void ST7735_WriteByte(const uint8_t byte);
 void ST7735_WriteWord(const uint16_t word);
