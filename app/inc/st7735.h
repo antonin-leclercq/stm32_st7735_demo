@@ -10,8 +10,8 @@
 
 #include "delay.h"
 
-#define PIXEL_WIDTH 128
-#define PIXEL_HEIGHT 160
+#define DISPLAY_WIDTH 128
+#define DISPLAY_HEIGHT 160
 
 // System function commands
 #define NOP			0x00 // no operation
@@ -89,11 +89,6 @@ enum WHICH_ID {
 	ID2,
 	ID3,
 };
-
-
-// Found in st7735_frame.c
-// Frame buffer for RGB 6-6-6 format
-extern const uint8_t frame_buffer[PIXEL_WIDTH * PIXEL_HEIGHT * 3];
 
 void ST7735_Init(void);
 void ST7735_NVIC_Init(void);

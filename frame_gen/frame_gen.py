@@ -3,7 +3,7 @@ import os
 from PIL import Image
 from numpy import asarray
 
-SOURCE_FILE_RPATH = "../app/src"
+SOURCE_FILE_RPATH = "../app/data/"
 SOURCE_FILE_NAME = None
 PIXEL_MAX_WIDTH = 128
 PIXEL_MAX_HEIGHT = 160
@@ -77,7 +77,6 @@ def main() -> None:
     
     img_name_only = os.path.basename(IMG_FILE_NAME).split('.')[0]
     
-    SOURCE_FILE_NAME = img_name_only.lower() + "_frame.c"
     HEADER_FILE_NAME = img_name_only.lower() + "_frame.h"
     BUFFER_NAME = img_name_only.lower() + "_buffer"
     
@@ -92,26 +91,23 @@ def main() -> None:
         hfile.write(f"#define {def_width} {PIXEL_WIDTH}\n")
         hfile.write(f"#define {def_height} {PIXEL_HEIGHT}\n\n")
         
-        hfile.write(f"extern const uint8_t {BUFFER_NAME}[{def_width} * {def_height} * 3];\n\n")
-
-        hfile.write("#endif")
-    
-    with open(SOURCE_FILE_RPATH + SOURCE_FILE_NAME, "w") as sfile:
-        sfile.write(f"#include \"{HEADER_FILE_NAME}\"\n")
+        hfile.write("typedef unsigned char uint8_t;\n\n")
         
-        sfile.write(f"const uint8_t {BUFFER_NAME}[{def_width} * {def_height} * 3] = {{" + "\n")
+        hfile.write(f"static const uint8_t {BUFFER_NAME}[{def_width} * {def_height} * 3] = {{\n")
         
         for i in range(PIXEL_HEIGHT):
-            sfile.write("\t")
+            hfile.write("\t")
             for j in range(PIXEL_WIDTH):
                 # map color to RGB-666 and write to file
                 red = int(img_res_data[i][j][0] * 0xFC / 0xFF)
                 green = int(img_res_data[i][j][1] * 0xFC / 0xFF)
                 blue = int(img_res_data[i][j][2] * 0xFC / 0xFF)
-                sfile.write(f"0x{red:02x}, 0x{green:02x}, 0x{blue:02x},   ")
-            sfile.write("\n")
+                hfile.write(f"0x{red:02x}, 0x{green:02x}, 0x{blue:02x},   ")
+            hfile.write("\n")
             
-        sfile.write("};")
+        hfile.write("};\n\n")
+
+        hfile.write("#endif")
 
 if __name__ == "__main__":
     main()

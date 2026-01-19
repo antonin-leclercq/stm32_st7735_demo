@@ -90,9 +90,6 @@ void ST7735_Init(void) {
 	// Set peripheral address
 	DMA1_Channel3->CPAR = (uint32_t) &SPI1->DR;
 
-	// Configure DMA source address and data count
-	ST7735_ConfigDMA((uint32_t)frame_buffer, PIXEL_WIDTH*PIXEL_HEIGHT*3);
-
 	// Map DMA to SPI1_TX
 	DMA1_CSELR->CSELR &= ~DMA_CSELR_C3S;
 	DMA1_CSELR->CSELR |= (0x01 << DMA_CSELR_C3S_Pos);
@@ -148,8 +145,8 @@ void ST7735_Init(void) {
 	TIM_Delay_Milli(130);
 
 	// Set column and row address sets to full screen
-	ST7735_SetColumnAddress(0, PIXEL_WIDTH-1);
-	ST7735_SetRowAddress(0, PIXEL_HEIGHT-1);
+	ST7735_SetColumnAddress(0, DISPLAY_WIDTH-1);
+	ST7735_SetRowAddress(0, DISPLAY_HEIGHT-1);
 
 	// Display ON
 	ST7735_SendCommand(DISPON);
@@ -418,7 +415,7 @@ void ST7735_ReadID(uint8_t* id_buffer, const enum WHICH_ID id) {
 }
 
 void ST7735_SetColumnAddress(const uint8_t xs, const uint8_t xe) {
-	if (xe < xs || xe > PIXEL_WIDTH-1) return;
+	if (xe < xs || xe > DISPLAY_WIDTH-1) return;
 
 	const uint8_t bytes[] = {
 			0, xs, 0, xe
@@ -428,7 +425,7 @@ void ST7735_SetColumnAddress(const uint8_t xs, const uint8_t xe) {
 }
 
 void ST7735_SetRowAddress(const uint8_t ys, const uint8_t ye) {
-	if (ye < ys || ye > PIXEL_HEIGHT-1) return;
+	if (ye < ys || ye > DISPLAY_HEIGHT-1) return;
 
 	const uint8_t bytes[] = {
 			0, ys, 0, ye
