@@ -15,7 +15,8 @@ This program only provides a simple interface : it is up to you to write drawing
 |PA10 / GPIO         | *RST / Reset           |
 |PA11 / GPIO         | BLK / Backlight        |
 
-For SPI in half-duplex communication, the reference manual recommands adding a 1k resistor between PA7 and SDA for safety.
+For SPI in half-duplex communication, the reference manual recommands adding a 1k resistor between PA7 and SDA for safety. <br>
+(*) = Active low pin
 
 ## Details
 The communication between the MCU and the display is done through hardware SPI. <br>
@@ -24,11 +25,16 @@ The peripheral clock is set to 64MHz and the SCK frequency is set to 250kHz (for
 To improve data transmission speed, it is easily possible to change the data clock up to 32MHz (though I haven't tested the program at this speed) by modifying the `SPI_BR` bits in the `CR1` register. <br>
 The data is sent in an RGB 6-6-6 format or 18 bits per pixel. <br>
 
+Before writing data to the LCD controller RAM, one must tell the controller the boundaries of the image to be put, through the `RASET` and `CASET` registers. <br>
+For example, if the goal is to put a 40x40 image starting at position (x,y)=(20, 20), we would write 40 and 60 to both registers.
+
 Furthermore, the USART2 peripheral is also initialized to send debug infos at 57600 bauds. <br>
 
 The transfer of the frame buffer from the MCU memory to the SPI peripheral can be also done by DMA, which helps unload the CPU. <br>
 
-In the folder `./frame_gen`, there is a python script called `frame_gen.py` that can be used to convert an image to an array with RGB 6-6-6 format. The output is written to `./app/src/st7735_frame.c`. <br>
+In the folder `./frame_gen`, there is a python script called `frame_gen.py` that can be used to convert an image to an array with RGB 6-6-6 format. The output is written to the folder `./app/data/`. <br>
+
+
 
 ## Useful documents:
 [STM32L476 datasheet](https://www.st.com/resource/en/datasheet/stm32l476je.pdf) <br>
